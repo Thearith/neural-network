@@ -10,10 +10,7 @@ ACCEL_TRAINING_DATA   = "training/March 14 2016 - 19-17-55-698 - Accel.txt"
 GYRO_TRAINING_DATA    = "training/March 14 2016 _ 19_17_55_698 - Gyro.txt"
 COMPASS_TRAINING_DATA = "training/March 14 2016 _ 19_17_55_698 - Compass.txt"
 
-TROUGHS       = "troughs"
-PEAKS         = "peaks"
-
-INPUT         = "features"
+FEATURES      = "features"
 OUTPUT        = "output"
 
 ACCEL_THRESHOLD = 1
@@ -44,14 +41,12 @@ def sync_accel_gyro_compass(accel_list, gyro_list, compass_list):
 
 
 #########################################
-# Peaks and Troughs Detection
+# Local Maximas Detection
 #########################################
 
-def extract_peaks_troughs(sensor_dict):
-  peaks_timestamp = []
-  troughs_timestamp = []
+def extract_peaks(sensor_dict):
+  peaks_index = []
 
-  timestamp = sensor_dict.keys()
   sensor_data = sensor_dict.values()
 
   filter_list = []
@@ -67,26 +62,26 @@ def extract_peaks_troughs(sensor_dict):
     curr = filter_list[i]
     next = filter_list[i+1]
     if(sensor_data[prev] <= sensor_data[curr] and sensor_data[curr] >= sensor_data[next]):
-      peaks_timestamp.append(timestamp[curr])
-    if(sensor_data[prev] >= sensor_data[curr] and sensor_data[curr] <= sensor_data[next]):
-      troughs_timestamp.append(timestamp[curr])
+      peaks_index.append(curr)
 
-  return {
-    PEAKS: peaks_timestamp,
-    TROUGHS: troughs_timestamp
-  }
+  return peaks_index
 
 
 ##############################
 # Extracting Features
 ##############################
 
-def extract_features(imu_list, start, end):
+def extract_features(imu_list, start, end, is_heel_strike):
   accel_features = extract_sensor_features(imu_list, sensor_data.ACCEL, start, end)
   gyro_features = extract_sensor_features(imu_list, sensor_data.GYRO, start, end)
   compass_features = extract_sensor_features(imu_list, sensor_data.COMPASS, start, end)
 
-  return accel_features + gyro_features + compass_features
+  features = accel_features + gyro_features + compass_features
+
+  return return {
+    FEATURES: features,
+    output: is_heel_strike
+  }
 
 def extract_sensor_features(imu_list, sensor_type, start, end):
   x_features = extract_sensor_axis_features(imu_list, sensor_type, sensor_data.X_AXIS, start, end)
@@ -183,8 +178,15 @@ if __name__ == "__main__":
 
   imu_list = sync_accel_gyro_compass(accel_list, gyro_list, compass_list)
 
-  # finding peaks and troughs
-  accel_y = imu_list.extract_sensor_axis_list(sensor_data.ACCEL, sensor_data.X_AXIS)
-  peaks_and_troughs = extract_peaks_troughs(accel_y)
-  print len(peaks_and_troughs[PEAK]), len(peaks_and_troughs[TROUGHS  ])
+  # finding peaks
+  accel_y = imu_list.extract_sensor_axis_list(sensor_data.ACCEL, sensor_data.Y_AXIS)
+  peaks_index = extract_peaks(accel_y)
 
+  features = []
+
+  # extracting features for non_heel_strike
+  for i in range(len(peaks_index)-1):
+    curr_peak_index = peaks_index[i]
+    next_peak_index = peaks_index[i+1]
+    feature_dict = extract_features(imu_list, curr_peak_index, next_peak_index, 0)
+    features.append([feature_dict[FEATURES], feature_dict[OUTPUT]])
