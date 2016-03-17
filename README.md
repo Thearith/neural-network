@@ -6,8 +6,8 @@ A step detection classifier using neural network (with back propagation algorith
 * [pybrain](http://pybrain.org/)
 
 **How to run the program:** 
-* Input your training data (accelerometer, gyroscope, compass) in training folder
-* Change the file names in neural_network.py
-* ***To run the program***: python neural_network.py
+* Input your training data (accelerometer, gyroscope, compass) in folder *training*
+* Change the file names in *neural_network.py*
+* ***To run the program***: *python neural_network.py*
 
 
