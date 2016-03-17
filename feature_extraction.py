@@ -1,6 +1,6 @@
-import numpy as np
+import sys
 from scipy.signal import argrelextrema
-import math
+from math import sqrt
 import file_reader_writer as file
 from imu_data import IMUData
 from imu_list import IMUList
@@ -18,6 +18,35 @@ HEEL_STRIKE     = 1
 NON_HEEL_STRIKE = 0
 
 ACCEL_THRESHOLD = 1
+
+
+########################################################
+# Main function
+# Input: a list of accel, gyro, compass sensor data
+# Output: a list of features
+########################################################
+
+def extract_features_from_data(accel_list, gyro_list, compass_list):
+  # syncing data
+  imu_list = sync_accel_gyro_compass(accel_list, gyro_list, compass_list)
+
+  accel_y = imu_list.extract_sensor_axis_list(sensor_data.ACCEL, sensor_data.Y_AXIS)
+  heel_strike = imu_list.extract_heel_strikes()
+
+  # extracting features for non heel strike peaks
+  non_hs_peaks_index = extract_peaks(accel_y)
+  non_hs_features = extract_feature_list(imu_list, non_hs_peaks_index, NON_HEEL_STRIKE)
+
+  # extracting features for heel strike
+  hs_peaks_index = extract_heel_strike_peaks(heel_strike)
+  hs_features = extract_feature_list(imu_list, hs_peaks_index, HEEL_STRIKE)
+
+  # combining the features
+  features = non_hs_features + hs_features
+  normalize(features)
+  shuffle(features)
+
+  return features
 
 
 ##############################
@@ -128,6 +157,33 @@ def extract_sensor_axis_features(imu_list, sensor_type, axis, start, end):
   return [mean_val, median_val, mode_val, diff_val, variance_val, standard_derivation_val]
 
 
+def normalize(features):
+  features_len = len(features[0][0])
+  max_features = [-sys.maxint for i in range(features_len)]
+  min_features = [sys.maxint for i in range(features_len)]
+
+  for i in range(len(features)):
+    for j in range(len(features[i][0])):
+      if(max_features[j] < features[i][0][j]):
+        max_features[j] = features[i][0][j]
+      if(min_features[j] > features[i][0][j]):
+        min_features[j] = features[i][0][j]
+
+  # normalize
+  for i in range(len(features)):
+    for j in range(len(features[i][0])):
+      min = min_features[j]
+      max = max_features[j]
+      if(max == min):
+        features[i][0][j] = 1
+      else:
+        features[i][0][j] = (features[i][0][j] - min) / (float)(max - min)
+
+
+##########################################################
+# Feature Extraction within list, helper functions
+##########################################################
+
 def mean(list, start, end):
   if(start > end):
     return mean(list, end, start)
@@ -198,7 +254,7 @@ def standard_derivation(list, start, end):
   if(start > end):
     return standard_derivation(list, end, start)
 
-  return math.sqrt(variance(list, start, end))
+  return sqrt(variance(list, start, end))
 
 
 if __name__ == "__main__":
@@ -207,22 +263,6 @@ if __name__ == "__main__":
   accel_list = file.get_sensor_list(ACCEL_TRAINING_DATA)
   gyro_list = file.get_sensor_list(GYRO_TRAINING_DATA)
   compass_list = file.get_sensor_list(COMPASS_TRAINING_DATA)
-  imu_list = sync_accel_gyro_compass(accel_list, gyro_list, compass_list)
 
-  accel_y = imu_list.extract_sensor_axis_list(sensor_data.ACCEL, sensor_data.Y_AXIS)
-  heel_strike = imu_list.extract_heel_strikes()
-
-  # extracting features for non heel strike peaks
-  non_hs_peaks_index = extract_peaks(accel_y)
-  non_hs_features = extract_feature_list(imu_list, non_hs_peaks_index, NON_HEEL_STRIKE)
-
-  # extracting features for heel strike
-  hs_peaks_index = extract_heel_strike_peaks(heel_strike)
-  hs_features = extract_feature_list(imu_list, hs_peaks_index, HEEL_STRIKE)
-
-  # combining the features
-  features = non_hs_features + hs_features
-  print features[0]
-  shuffle(features)
-  print features[0]
-
+  features = extract_features_from_data(accel_list, gyro_list, compass_list)
+  print features[0], len(features[0][0])
