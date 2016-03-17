@@ -3,7 +3,7 @@
 A step detection classifier using neural network (with back propagation algorithm) to determine whether a peak in accelerometer data is either a heel strike or a non heel strike. Written in python.
 
 **Library:** 
-* pybrain, [Nesta CMS](http://pybrain.org/)
+* [pybrain](http://pybrain.org/)
 
 **How to run the program:** 
 * Input your training data (accelerometer, gyroscope, compass) in training folder
