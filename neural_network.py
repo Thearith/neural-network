@@ -26,11 +26,14 @@ if __name__ == "__main__":
 
 
   # feature extraction
+  print "\n"
+  print "********************* FEATURE EXTRACTION *********************"
   features = extract_features_from_data(accel_list, gyro_list, compass_list)
   input = [ features[i][0] for i in range(len(features))]
   output = [ features[i][1] for i in range(len(features))]
-  print input[0], output[0]
   num_features = len(input[0])
+  print "Sample Input: " , input[0]
+  print "Sample Output: ", output[0], "\n\n"
 
 
   # dataset
@@ -53,16 +56,18 @@ if __name__ == "__main__":
   trndata._convertToOneOfMany( )
   tstdata._convertToOneOfMany( )
 
-
+  print "********************* TRAINING DATA PATTERN *********************"
   print "Number of training patterns: ", len(trndata)
   print "Input and output dimensions: ", trndata.indim, trndata.outdim
   print "First sample (input, target, class):"
-  print trndata['input'][0], trndata['target'][0], trndata['class'][0]
+  print trndata['input'][0], trndata['target'][0], trndata['class'][0], "\n\n"
 
 
   # build network and train
   fnn = buildNetwork( trndata.indim, HIDDEN_UNITS, trndata.outdim, outclass=SoftmaxLayer )
   trainer = BackpropTrainer( fnn, dataset=trndata, momentum=0.1, verbose=True, weightdecay=0.01)
+
+  print "********************* TRAINING DATA *********************"
 
   for i in range(TRAINING_ITERATION):
     trainer.trainEpochs(NUM_EPOCHS)
@@ -73,4 +78,6 @@ if __name__ == "__main__":
           "  train error: %5.2f%%" % trnresult, \
           "  test error: %5.2f%%" % tstresult
 
-  print fnn
+  print "\n\n"
+  print "********************* TRAINED NEURAL NETWORK *********************"
+  print fnn, "\n"
