@@ -5,6 +5,7 @@ import file_reader_writer as file
 from imu_data import IMUData
 from imu_list import IMUList
 import sensor_data
+from random import shuffle
 
 ACCEL_TRAINING_DATA   = "training/March 14 2016 - 19-17-55-698 - Accel.txt"
 GYRO_TRAINING_DATA    = "training/March 14 2016 _ 19_17_55_698 - Gyro.txt"
@@ -12,6 +13,9 @@ COMPASS_TRAINING_DATA = "training/March 14 2016 _ 19_17_55_698 - Compass.txt"
 
 FEATURES      = "features"
 OUTPUT        = "output"
+
+HEEL_STRIKE     = 1
+NON_HEEL_STRIKE = 0
 
 ACCEL_THRESHOLD = 1
 
@@ -47,22 +51,32 @@ def sync_accel_gyro_compass(accel_list, gyro_list, compass_list):
 def extract_peaks(sensor_dict):
   peaks_index = []
 
-  sensor_data = sensor_dict.values()
+  sensor_list = sensor_dict.values()
 
   filter_list = []
   filter_list.append(0)
-  sample_val = sensor_data[0]
-  for i in range(1, len(sensor_data)):
-    if(abs(sample_val - sensor_data[i]) <= ACCEL_THRESHOLD):
-      sample_val = sensor_data[i]
+  sample_val = sensor_list[0]
+  for i in range(1, len(sensor_list)):
+    if(abs(sample_val - sensor_list[i]) <= ACCEL_THRESHOLD):
+      sample_val = sensor_list[i]
       filter_list.append(i)
 
   for i in range(1, len(filter_list)-1):
     prev = filter_list[i-1]
     curr = filter_list[i]
     next = filter_list[i+1]
-    if(sensor_data[prev] <= sensor_data[curr] and sensor_data[curr] >= sensor_data[next]):
+    if(sensor_list[prev] <= sensor_list[curr] and sensor_list[curr] >= sensor_list[next]):
       peaks_index.append(curr)
+
+  return peaks_index
+
+def extract_heel_strike_peaks(heel_strike_dict):
+  peaks_index = []
+  heel_strikes_list = heel_strike_dict.values()
+
+  for i in range(len(heel_strikes_list)):
+    if(heel_strikes_list[i] == HEEL_STRIKE):
+      peaks_index.append(i)
 
   return peaks_index
 
@@ -71,6 +85,15 @@ def extract_peaks(sensor_dict):
 # Extracting Features
 ##############################
 
+def extract_feature_list(imu_list, peaks_index, output):
+  features = []
+  for i in range(len(peaks_index)-1):
+    curr_peak_index = peaks_index[i]
+    next_peak_index = peaks_index[i+1]
+    feature_dict = extract_features(imu_list, curr_peak_index, next_peak_index, output)
+    features.append([feature_dict[FEATURES], [feature_dict[OUTPUT]]])
+  return features
+
 def extract_features(imu_list, start, end, is_heel_strike):
   accel_features = extract_sensor_features(imu_list, sensor_data.ACCEL, start, end)
   gyro_features = extract_sensor_features(imu_list, sensor_data.GYRO, start, end)
@@ -78,9 +101,9 @@ def extract_features(imu_list, start, end, is_heel_strike):
 
   features = accel_features + gyro_features + compass_features
 
-  return return {
+  return {
     FEATURES: features,
-    output: is_heel_strike
+    OUTPUT: is_heel_strike
   }
 
 def extract_sensor_features(imu_list, sensor_type, start, end):
@@ -94,6 +117,15 @@ def extract_sensor_axis_features(imu_list, sensor_type, axis, start, end):
   sensor_dict = imu_list.extract_sensor_axis_list(sensor_type, axis)
   timestamp = sensor_dict.keys()
   datas = sensor_dict.values()
+
+  mean_val = mean(datas, start, end)
+  median_val = median(datas, start, end)
+  mode_val = mode(datas, start, end)
+  diff_val = mode(datas, start, end)
+  variance_val = variance(datas, start, end)
+  standard_derivation_val = standard_derivation(datas, start, end)
+
+  return [mean_val, median_val, mode_val, diff_val, variance_val, standard_derivation_val]
 
 
 def mean(list, start, end):
@@ -112,7 +144,7 @@ def median(list, start, end):
     return median(list, end, start)
 
   array = list[start:end+1]
-  array = sort(array)
+  array.sort()
   half, odd = divmod(len(array), 2)
   if odd:
     return array[half]
@@ -154,10 +186,10 @@ def variance(list, start, end):
   if(start > end):
     return variance(list, end, start)
 
-  mean = mean(list, start, end)
+  mean_val = mean(list, start, end)
   sum = 0.0
   for i in range(start, end+1):
-    sum += (list[i] - mean) * (list[i] - mean)
+    sum += (list[i] - mean_val) * (list[i] - mean_val)
 
   return sum / (end - start + 1)
 
@@ -175,18 +207,22 @@ if __name__ == "__main__":
   accel_list = file.get_sensor_list(ACCEL_TRAINING_DATA)
   gyro_list = file.get_sensor_list(GYRO_TRAINING_DATA)
   compass_list = file.get_sensor_list(COMPASS_TRAINING_DATA)
-
   imu_list = sync_accel_gyro_compass(accel_list, gyro_list, compass_list)
 
-  # finding peaks
   accel_y = imu_list.extract_sensor_axis_list(sensor_data.ACCEL, sensor_data.Y_AXIS)
-  peaks_index = extract_peaks(accel_y)
+  heel_strike = imu_list.extract_heel_strikes()
 
-  features = []
+  # extracting features for non heel strike peaks
+  non_hs_peaks_index = extract_peaks(accel_y)
+  non_hs_features = extract_feature_list(imu_list, non_hs_peaks_index, NON_HEEL_STRIKE)
 
-  # extracting features for non_heel_strike
-  for i in range(len(peaks_index)-1):
-    curr_peak_index = peaks_index[i]
-    next_peak_index = peaks_index[i+1]
-    feature_dict = extract_features(imu_list, curr_peak_index, next_peak_index, 0)
-    features.append([feature_dict[FEATURES], feature_dict[OUTPUT]])
+  # extracting features for heel strike
+  hs_peaks_index = extract_heel_strike_peaks(heel_strike)
+  hs_features = extract_feature_list(imu_list, hs_peaks_index, HEEL_STRIKE)
+
+  # combining the features
+  features = non_hs_features + hs_features
+  print features[0]
+  shuffle(features)
+  print features[0]
+

@@ -7,6 +7,10 @@ ACCEL           = 0
 GYRO            = 1
 COMPASS         = 2
 
+X_AXIS  = 0
+Y_AXIS  = 1
+Z_AXIS  = 2
+
 class SensorData:
 
   def __init__(self, sensor, timestamp, is_heel_strike=NON_HEEL_STRIKE):

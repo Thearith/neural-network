@@ -14,14 +14,7 @@ TRAINING_ITERATION  = 20
 NUM_EPOCHS          = 1
 
 # read file
-input = []
-output = []
-with open(FILE_NAME, 'r') as reader:
-  for line_terminated in reader:
-    line = line_terminated.rstrip('\n')
-    words = line.split()
-    input.append(words[0:NUM_FEATURES])
-    output.append(words[-1])
+
 
 
 # dataset
