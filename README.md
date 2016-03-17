@@ -1,4 +1,4 @@
-Machine Learnging with Neural Network
+#Machine Learnging with Neural Network
 
 A step detection classifier using neural network (with back propagation algorithm) to determine whether a peak in accelerometer data is either a heel strike or a non heel strike
 
