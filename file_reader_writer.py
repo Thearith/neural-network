@@ -30,6 +30,25 @@ def get_sensor_list(file_name):
 
   return datas
 
+def get_ground_truth_raw(file_name):
+  lines = read_file(file_name)
+  ground_truths = []
+  for line in lines:
+    words = line.split()
+    ground_truth = long(words[1])
+    ground_truths.append(ground_truth)
+
+  return ground_truths
+
+def get_ground_truth(file_name):
+  lines = read_file(file_name)
+  ground_truths = []
+  for line in lines:
+    words = line.split()
+    ground_truth = long(words[0])
+    ground_truths.append(ground_truth)
+
+  return ground_truths
 
 if __name__ == "__main__":
   lines = read_file("training/percentage.txt")
