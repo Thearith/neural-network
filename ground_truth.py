@@ -72,26 +72,31 @@ def extract_peaks(sensor_list):
 
 
 if __name__ == "__main__":
-  file_location = TRAINING_DATA_LOCATION + "/1/"
-  accel_list = file.get_sensor_list(file_location + ACCEL_TRAINING_DATA)
-  gyro_list = file.get_sensor_list(file_location + GYRO_TRAINING_DATA)
-  compass_list = file.get_sensor_list(file_location + COMPASS_TRAINING_DATA)
-  ground_truth_list = file.get_ground_truth_raw(file_location + GROUND_TRUTH_DATA_RAW)
 
-  imu_list = sync_accel_gyro_compass(accel_list, gyro_list, compass_list)
+  for num_file in range(1, NUM_FILES):
 
-  accel_y_dict = imu_list.extract_sensor_axis_list(ACCEL, Y_AXIS)
-  accel_y = accel_y_dict[READINGS]
-  timestamps = accel_y_dict[TIMESTAMPS]
-  peaks_index = extract_peaks(accel_y)
+    print "Currently in file:", (num_file+1)
 
-  heel_strikes = extract_heel_strike_peaks(timestamps, peaks_index, ground_truth_list)
+    file_location = TRAINING_DATA_LOCATION + "/" + str(num_file+1) + "/"
+    accel_list = file.get_sensor_list(file_location + ACCEL_TRAINING_DATA)
+    gyro_list = file.get_sensor_list(file_location + GYRO_TRAINING_DATA)
+    compass_list = file.get_sensor_list(file_location + COMPASS_TRAINING_DATA)
+    ground_truth_list = file.get_ground_truth_raw(file_location + GROUND_TRUTH_DATA_RAW)
 
-  # write to file
-  outputs = []
-  for heel_strike in heel_strikes:
-    output = str(heel_strike[0]) + "\t" + str(heel_strike[1])
-    outputs.append(output)
-  file.write_file(file_location + GROUND_TRUTH_DATA, outputs)
+    imu_list = sync_accel_gyro_compass(accel_list, gyro_list, compass_list)
+
+    accel_y_dict = imu_list.extract_sensor_axis_list(ACCEL, Y_AXIS)
+    accel_y = accel_y_dict[READINGS]
+    timestamps = accel_y_dict[TIMESTAMPS]
+    peaks_index = extract_peaks(accel_y)
+
+    heel_strikes = extract_heel_strike_peaks(timestamps, peaks_index, ground_truth_list)
+
+    # write to file
+    outputs = []
+    for heel_strike in heel_strikes:
+      output = str(heel_strike[0]) + "\t" + str(heel_strike[1])
+      outputs.append(output)
+    file.write_file(file_location + GROUND_TRUTH_DATA, outputs)
 
 

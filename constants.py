@@ -16,6 +16,7 @@ HEEL_STRIKES            = "heel_strikes"
 FEATURES                = "features"
 OUTPUT                  = "output"
 
+NUM_FILES               = 5
 TRAINING_DATA_LOCATION  = "training"
 DEBUG_TRAINING_DATA     = "debug"
 ACCEL_TRAINING_DATA     = "Accel.txt"
