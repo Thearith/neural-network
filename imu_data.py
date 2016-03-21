@@ -1,9 +1,4 @@
-HEEL_STRIKE     = 1
-NON_HEEL_STRIKE = 0
-
-ACCEL           = 0
-GYRO            = 1
-COMPASS         = 2
+from constants import *
 
 class IMUData:
 

@@ -1,15 +1,5 @@
 from vector import Vector
-
-HEEL_STRIKE     = 1
-NON_HEEL_STRIKE = 0
-
-ACCEL           = 0
-GYRO            = 1
-COMPASS         = 2
-
-X_AXIS  = 0
-Y_AXIS  = 1
-Z_AXIS  = 2
+from constants import *
 
 class SensorData:
 
