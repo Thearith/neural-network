@@ -6,18 +6,15 @@ from imu_data import IMUData
 from imu_list import IMUList
 import sensor_data
 from random import shuffle
+from constants import *
 
-ACCEL_TRAINING_DATA   = "training/March 14 2016 - 19-17-55-698 - Accel.txt"
-GYRO_TRAINING_DATA    = "training/March 14 2016 _ 19_17_55_698 - Gyro.txt"
-COMPASS_TRAINING_DATA = "training/March 14 2016 _ 19_17_55_698 - Compass.txt"
+########################
+# CONSTANTS
+########################
 
-FEATURES      = "features"
-OUTPUT        = "output"
+ACCEL_THRESHOLD = 0.45
+TIME_THRESHOLD  = 100
 
-HEEL_STRIKE     = 1
-NON_HEEL_STRIKE = 0
-
-ACCEL_THRESHOLD = 1
 
 
 ########################################################
@@ -26,19 +23,20 @@ ACCEL_THRESHOLD = 1
 # Output: a list of features
 ########################################################
 
-def extract_features_from_data(accel_list, gyro_list, compass_list):
+def extract_features_from_data(accel_list, gyro_list, compass_list, ground_truth_list):
   # syncing data
   imu_list = sync_accel_gyro_compass(accel_list, gyro_list, compass_list)
 
-  accel_y = imu_list.extract_sensor_axis_list(sensor_data.ACCEL, sensor_data.Y_AXIS)
-  heel_strike = imu_list.extract_heel_strikes()
+  accel_y_dict = imu_list.extract_sensor_axis_list(ACCEL, Y_AXIS)
+  accel_y = accel_y_dict[READINGS]
+  timestamps = accel_y_dict[TIMESTAMPS]
 
   # extracting features for non heel strike peaks
-  non_hs_peaks_index = extract_peaks(accel_y)
-  non_hs_features = extract_feature_list(imu_list, non_hs_peaks_index, NON_HEEL_STRIKE)
+  peaks_index = extract_peaks(accel_y)
+  non_hs_features = extract_feature_list(imu_list, peaks_index, NON_HEEL_STRIKE)
 
   # extracting features for heel strike
-  hs_peaks_index = extract_heel_strike_peaks(heel_strike)
+  hs_peaks_index = ground_truth_list
   hs_features = extract_feature_list(imu_list, hs_peaks_index, HEEL_STRIKE)
 
   # combining the features
@@ -77,16 +75,14 @@ def sync_accel_gyro_compass(accel_list, gyro_list, compass_list):
 # Local Maximas Detection
 #########################################
 
-def extract_peaks(sensor_dict):
+def extract_peaks(sensor_list):
   peaks_index = []
-
-  sensor_list = sensor_dict.values()
 
   filter_list = []
   filter_list.append(0)
   sample_val = sensor_list[0]
   for i in range(1, len(sensor_list)):
-    if(abs(sample_val - sensor_list[i]) <= ACCEL_THRESHOLD):
+    if(abs(sample_val - sensor_list[i]) >= ACCEL_THRESHOLD):
       sample_val = sensor_list[i]
       filter_list.append(i)
 
@@ -99,63 +95,10 @@ def extract_peaks(sensor_dict):
 
   return peaks_index
 
-def extract_heel_strike_peaks(heel_strike_dict):
-  peaks_index = []
-  heel_strikes_list = heel_strike_dict.values()
-
-  for i in range(len(heel_strikes_list)):
-    if(heel_strikes_list[i] == HEEL_STRIKE):
-      peaks_index.append(i)
-
-  return peaks_index
-
 
 ##############################
 # Extracting Features
 ##############################
-
-def extract_feature_list(imu_list, peaks_index, output):
-  features = []
-  for i in range(len(peaks_index)-1):
-    curr_peak_index = peaks_index[i]
-    next_peak_index = peaks_index[i+1]
-    feature_dict = extract_features(imu_list, curr_peak_index, next_peak_index, output)
-    features.append([feature_dict[FEATURES], [feature_dict[OUTPUT]]])
-  return features
-
-def extract_features(imu_list, start, end, is_heel_strike):
-  accel_features = extract_sensor_features(imu_list, sensor_data.ACCEL, start, end)
-  gyro_features = extract_sensor_features(imu_list, sensor_data.GYRO, start, end)
-  compass_features = extract_sensor_features(imu_list, sensor_data.COMPASS, start, end)
-
-  features = accel_features + gyro_features + compass_features
-
-  return {
-    FEATURES: features,
-    OUTPUT: is_heel_strike
-  }
-
-def extract_sensor_features(imu_list, sensor_type, start, end):
-  x_features = extract_sensor_axis_features(imu_list, sensor_type, sensor_data.X_AXIS, start, end)
-  y_features = extract_sensor_axis_features(imu_list, sensor_type, sensor_data.Y_AXIS, start, end)
-  z_features = extract_sensor_axis_features(imu_list, sensor_type, sensor_data.Z_AXIS, start, end)
-
-  return x_features + y_features + z_features
-
-def extract_sensor_axis_features(imu_list, sensor_type, axis, start, end):
-  sensor_dict = imu_list.extract_sensor_axis_list(sensor_type, axis)
-  timestamp = sensor_dict.keys()
-  datas = sensor_dict.values()
-
-  mean_val = mean(datas, start, end)
-  median_val = median(datas, start, end)
-  mode_val = mode(datas, start, end)
-  diff_val = mode(datas, start, end)
-  variance_val = variance(datas, start, end)
-  standard_derivation_val = standard_derivation(datas, start, end)
-
-  return [mean_val, median_val, mode_val, diff_val, variance_val, standard_derivation_val]
-
 
 def normalize(features):
   features_len = len(features[0][0])
@@ -177,92 +120,129 @@ def normalize(features):
       if(max == min):
         features[i][0][j] = 1
       else:
-        features[i][0][j] = (features[i][0][j] - min) / (float)(max - min)
+        features[i][0][j] = (features[i][0][j] - min) / float(max - min)
+
+def extract_feature_list(imu_list, peaks_index, output):
+  features = []
+  for i in range(len(peaks_index)-1):
+    curr_peak_index = peaks_index[i]
+    next_peak_index = peaks_index[i+1]
+    feature_dict = extract_features(imu_list, curr_peak_index, next_peak_index, output)
+    features.append([feature_dict[FEATURES], [feature_dict[OUTPUT]]])
+  return features
+
+def extract_features(imu_list, start, end, is_heel_strike):
+  accel_features = extract_sensor_features(imu_list, ACCEL, start, end)
+  gyro_features = extract_sensor_features(imu_list, GYRO, start, end)
+  compass_features = extract_sensor_features(imu_list, COMPASS, start, end)
+
+  features = accel_features + gyro_features + compass_features
+
+  return {
+    FEATURES: features,
+    OUTPUT: is_heel_strike
+  }
+
+def extract_sensor_features(imu_list, sensor_type, start, end):
+  x_features = extract_sensor_axis_features(imu_list, sensor_type, X_AXIS, start, end)
+  y_features = extract_sensor_axis_features(imu_list, sensor_type, Y_AXIS, start, end)
+  z_features = extract_sensor_axis_features(imu_list, sensor_type, Z_AXIS, start, end)
+
+  return x_features + y_features + z_features
+
+def extract_sensor_axis_features(imu_list, sensor_type, axis, start, end):
+  sensor_dict = imu_list.extract_sensor_axis_list(sensor_type, axis)
+  timestamps = sensor_dict[TIMESTAMPS]
+  readings = sensor_dict[READINGS]
+  intvl_readings = readings[start:end+1]
+  intvl_timestamps = timestamps[start:end+1]
+
+
+  mean_val = mean(intvl_readings)
+  max_val = max(intvl_readings)
+  min_val = min(intvl_readings)
+  median_val = median(intvl_readings)
+  range_val = extract_range(intvl_readings)
+  variance_val = variance(intvl_readings)
+  std_val = standard_derivation(intvl_readings)
+
+  diff_list = diff(intvl_readings)
+  mean_diff_list = mean(diff_list)
+  median_diff_list = median(diff_list)
+  range_diff_list = extract_range(diff_list)
+  std_diff_list = standard_derivation(diff_list)
+
+  peak_to_peak = max_val - min_val
+  thres1 = min_val + peak_to_peak * 0.3
+  thres2 = min_val + peak_to_peak * 0.5
+  thres3 = min_val + peak_to_peak * 0.7
+  mean_thres1 = mean(intvl_readings, thres1)
+  mean_thres2 = mean(intvl_readings, thres2)
+  mean_thres3 = mean(intvl_readings, thres3)
+
+  num_peaks = len(extract_peaks(intvl_readings))
+  timestamp = diff_timestamp(intvl_timestamps)
+
+  return [mean_val, max_val, min_val, median_val, range_val, variance_val, std_val,
+  mean_diff_list, median_diff_list,
+  range_diff_list, std_diff_list, peak_to_peak, mean_thres1, mean_thres2, mean_thres3,
+  num_peaks, timestamp]
 
 
 ##########################################################
 # Feature Extraction within list, helper functions
 ##########################################################
 
-def mean(list, start, end):
-  if(start > end):
-    return mean(list, end, start)
-
+def mean(list, threshold=-sys.maxint):
   sum = 0.0
-  for i in range(start, end+1):
-    sum += list[i]
+  for val in list:
+    if(val >= threshold):
+      sum += val
 
-  return sum / (end - start + 1)
+  return sum / float(len(list))
 
-
-def median(list, start, end):
-  if(start > end):
-    return median(list, end, start)
-
-  array = list[start:end+1]
-  array.sort()
-  half, odd = divmod(len(array), 2)
+def median(list):
+  list.sort()
+  half, odd = divmod(len(list), 2)
   if odd:
-    return array[half]
+    return list[half]
 
-  return (array[half - 1] + array[half]) / 2.0
+  return (list[half - 1] + list[half]) / 2.0
 
-
-def mode(list, start, end):
-  if(start > end):
-    return mode(list, end, start)
-
-  count = {}
-  for i in range(start, end+1):
-    if list[i] in count.keys():
-      count[list[i]] += 1
-    else:
-      count[list[i]] = 1
-
-  highestNum = 0
-  for i in count.keys():
-    if(count[i] > highestNum):
-      highestNum = count[i]
-      mode = i
-
-  if(highestNum == 1):
-    return mean(list, start, end)
-
-  return mode
-
-
-def diff(list, start, end):
-  if(start > end):
-    return diff(list, end, start)
-
+def extract_range(list):
   return max(list) - min(list)
 
-
-def variance(list, start, end):
-  if(start > end):
-    return variance(list, end, start)
-
-  mean_val = mean(list, start, end)
+def variance(list):
+  mean_val = mean(list)
   sum = 0.0
-  for i in range(start, end+1):
-    sum += (list[i] - mean_val) * (list[i] - mean_val)
+  for val in list:
+    sum += (val - mean_val) * (val - mean_val)
 
-  return sum / (end - start + 1)
+  return sum / float(len(list))
 
+def standard_derivation(list):
+  return sqrt(variance(list))
 
-def standard_derivation(list, start, end):
-  if(start > end):
-    return standard_derivation(list, end, start)
+def diff(list):
+  diff_list = []
+  for i in range(0, len(list)-1):
+    diff = list[i+1] -  list[i]
+    diff_list.append(diff)
 
-  return sqrt(variance(list, start, end))
+  return diff_list
+
+def diff_timestamp(timestamps):
+  return timestamps[-1] - timestamps[0]
 
 
 if __name__ == "__main__":
 
-  # getting sensor list and trim data
-  accel_list = file.get_sensor_list(ACCEL_TRAINING_DATA)
-  gyro_list = file.get_sensor_list(GYRO_TRAINING_DATA)
-  compass_list = file.get_sensor_list(COMPASS_TRAINING_DATA)
+  # read file
+  file_location = TRAINING_DATA_LOCATION + "/1/"
+  accel_list = file.get_sensor_list(file_location + ACCEL_TRAINING_DATA)
+  gyro_list = file.get_sensor_list(file_location + GYRO_TRAINING_DATA)
+  compass_list = file.get_sensor_list(file_location + COMPASS_TRAINING_DATA)
+  ground_truth_list = file.get_ground_truth(file_location + GROUND_TRUTH_DATA)
 
-  features = extract_features_from_data(accel_list, gyro_list, compass_list)
-  print features[0], len(features[0][0])
+  features = extract_features_from_data(accel_list, gyro_list, compass_list, ground_truth_list)
+  print len(features[0][0])
