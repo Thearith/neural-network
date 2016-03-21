@@ -1,3 +1,4 @@
 matlab code/
 pybrain/
 *.py[cod]
+.DS_STORE
