@@ -10,7 +10,7 @@ from constants import *
 ########################
 
 ACCEL_THRESHOLD = 0.45
-TIME_THRESHOLD  = 100
+TIME_THRESHOLD  = 250
 LAG_TIME        = 100
 
 
@@ -34,19 +34,35 @@ def sync_accel_gyro_compass(accel_list, gyro_list, compass_list):
   return IMUList(imu_list)
 
 
-def extract_heel_strike_peaks(timestamps, peaks_index, ground_truth_list):
+def extract_heel_strike_peaks(timestamps, accel_list, peaks_index, ground_truth_list):
   hs_peaks_index = []
+  index = -1
 
   for timestamp in ground_truth_list:
     closest_index = peaks_index[0]
     min_diff = sys.maxint
-    for peak_index in peaks_index:
+    closest = []
+
+    for j in range(index+1, len(peaks_index)):
+      peak_index = peaks_index[j]
       diff = abs(timestamp - timestamps[peak_index] - LAG_TIME)
       if min_diff > diff:
         min_diff = diff
         closest_index = peak_index
-    print closest_index, min_diff
-    hs_peaks_index.append([closest_index, min_diff])
+      if diff < TIME_THRESHOLD:
+        closest.append(peak_index)
+
+    if(len(closest) > 1):
+      highest_peak_index = closest[0]
+      highest_peak_val = -sys.maxint
+      for i in closest:
+        if highest_peak_val < accel_list[i]:
+          highest_peak_val = accel_list[i]
+          highest_peak_index = i
+      closest_index = highest_peak_index
+
+    index = peaks_index.index(closest_index)
+    hs_peaks_index.append(closest_index)
 
   return hs_peaks_index
 
@@ -65,7 +81,7 @@ def extract_peaks(sensor_list):
     prev = filter_list[i-1]
     curr = filter_list[i]
     next = filter_list[i+1]
-    if(sensor_list[prev] <= sensor_list[curr] and sensor_list[curr] >= sensor_list[next]):
+    if(sensor_list[prev] < sensor_list[curr] and sensor_list[curr] > sensor_list[next]):
       peaks_index.append(curr)
 
   return peaks_index
@@ -90,13 +106,12 @@ if __name__ == "__main__":
     timestamps = accel_y_dict[TIMESTAMPS]
     peaks_index = extract_peaks(accel_y)
 
-    heel_strikes = extract_heel_strike_peaks(timestamps, peaks_index, ground_truth_list)
+    heel_strikes = extract_heel_strike_peaks(timestamps, accel_y, peaks_index, ground_truth_list)
 
     # write to file
     outputs = []
     for heel_strike in heel_strikes:
-      output = str(heel_strike[0]) + "\t" + str(heel_strike[1])
-      outputs.append(output)
+      outputs.append(str(heel_strike))
     file.write_file(file_location + GROUND_TRUTH_DATA, outputs)
 
 

@@ -13,17 +13,17 @@ from constants import *
 ########################
 
 ACCEL_THRESHOLD = 0.45
-TIME_THRESHOLD  = 100
 
 
 
-########################################################
+###########################################################################
 # Main function
-# Input: a list of accel, gyro, compass sensor data
+# Purpose: extract features for training neural network
+# Input: a list of accel, gyro, compass sensor data, ground truth data
 # Output: a list of features
-########################################################
+###########################################################################
 
-def extract_features_from_data(accel_list, gyro_list, compass_list, ground_truth_list):
+def extract_features_for_training(accel_list, gyro_list, compass_list, ground_truth_list):
   # syncing data
   imu_list = sync_accel_gyro_compass(accel_list, gyro_list, compass_list)
 
@@ -33,11 +33,11 @@ def extract_features_from_data(accel_list, gyro_list, compass_list, ground_truth
 
   # extracting features for non heel strike peaks
   peaks_index = extract_peaks(accel_y)
-  non_hs_features = extract_feature_list(imu_list, peaks_index, NON_HEEL_STRIKE)
+  non_hs_features = extract_feature_list_for_training(imu_list, peaks_index, NON_HEEL_STRIKE)
 
   # extracting features for heel strike
-  hs_peaks_index = ground_truth_list
-  hs_features = extract_feature_list(imu_list, hs_peaks_index, HEEL_STRIKE)
+  hs_peaks_index = [0] + ground_truth_list
+  hs_features = extract_feature_list_for_training(imu_list, hs_peaks_index, HEEL_STRIKE)
 
   # combining the features
   features = non_hs_features + hs_features
@@ -45,6 +45,16 @@ def extract_features_from_data(accel_list, gyro_list, compass_list, ground_truth
   shuffle(features)
 
   return features
+
+def extract_feature_list_for_training(imu_list, peaks_index, output):
+  features = []
+  for i in range(len(peaks_index)-1):
+    curr_peak_index = peaks_index[i]
+    next_peak_index = peaks_index[i+1]
+    feature = extract_features(imu_list, curr_peak_index, next_peak_index)
+    features.append([feature, [output]])
+  return features
+
 
 
 ##############################
@@ -71,12 +81,13 @@ def sync_accel_gyro_compass(accel_list, gyro_list, compass_list):
   return IMUList(imu_list)
 
 
+
 #########################################
 # Local Maximas Detection
 #########################################
 
 def extract_peaks(sensor_list):
-  peaks_index = []
+  peaks_index = [0]
 
   filter_list = []
   filter_list.append(0)
@@ -90,10 +101,11 @@ def extract_peaks(sensor_list):
     prev = filter_list[i-1]
     curr = filter_list[i]
     next = filter_list[i+1]
-    if(sensor_list[prev] <= sensor_list[curr] and sensor_list[curr] >= sensor_list[next]):
+    if(sensor_list[prev] < sensor_list[curr] and sensor_list[curr] > sensor_list[next]):
       peaks_index.append(curr)
 
   return peaks_index
+
 
 
 ##############################
@@ -122,26 +134,15 @@ def normalize(features):
       else:
         features[i][0][j] = (features[i][0][j] - min) / float(max - min)
 
-def extract_feature_list(imu_list, peaks_index, output):
-  features = []
-  for i in range(len(peaks_index)-1):
-    curr_peak_index = peaks_index[i]
-    next_peak_index = peaks_index[i+1]
-    feature_dict = extract_features(imu_list, curr_peak_index, next_peak_index, output)
-    features.append([feature_dict[FEATURES], [feature_dict[OUTPUT]]])
-  return features
 
-def extract_features(imu_list, start, end, is_heel_strike):
+def extract_features(imu_list, start, end):
   accel_features = extract_sensor_features(imu_list, ACCEL, start, end)
   gyro_features = extract_sensor_features(imu_list, GYRO, start, end)
   compass_features = extract_sensor_features(imu_list, COMPASS, start, end)
 
   features = accel_features + gyro_features + compass_features
 
-  return {
-    FEATURES: features,
-    OUTPUT: is_heel_strike
-  }
+  return features
 
 def extract_sensor_features(imu_list, sensor_type, start, end):
   x_features = extract_sensor_axis_features(imu_list, sensor_type, X_AXIS, start, end)
