@@ -12,5 +12,6 @@ A step detection classifier using neural network (with back propagation algorith
 
 **Ground Truth Synchronization Tool:**
 * [Ground-Truth](https://github.com/Thearith/Ground-Truth): an Android application with a button to record timestamp each time it is pressed
+* To get ground truth list (a list of heel strikes' timestamp): *python ground_truth.py*
 
 
