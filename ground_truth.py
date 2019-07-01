@@ -89,7 +89,7 @@ def extract_peaks(sensor_list):
 
 if __name__ == "__main__":
 
-  for num_file in range(1, NUM_FILES):
+  for num_file in range(1, NUM_RAW_FILES):
 
     print "Currently in file:", (num_file+1)
 

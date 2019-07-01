@@ -1,12 +1,12 @@
 import sys
-from scipy.signal import argrelextrema
-from math import sqrt
-import file_reader_writer as file
-from imu_data import IMUData
-from imu_list import IMUList
+from scipy.signal           import argrelextrema
+from math                   import sqrt
+import file_reader_writer   as file
+from imu_data               import IMUData
+from imu_list               import IMUList
 import sensor_data
-from random import shuffle
-from constants import *
+from random                 import shuffle
+from constants              import *
 
 ########################
 # CONSTANTS
@@ -41,8 +41,10 @@ def extract_features_for_training(accel_list, gyro_list, compass_list, ground_tr
 
   # combining the features
   features = non_hs_features + hs_features
-  normalize(features)
-  shuffle(features)
+  max_min_features = normalize(features)
+  # shuffle(features)
+
+  write_max_min_features_to_file(max_min_features)
 
   return features
 
@@ -90,7 +92,6 @@ def extract_peaks(sensor_list):
   peaks_index = [0]
 
   filter_list = []
-  filter_list.append(0)
   sample_val = sensor_list[0]
   for i in range(1, len(sensor_list)):
     if(abs(sample_val - sensor_list[i]) >= ACCEL_THRESHOLD):
@@ -107,10 +108,9 @@ def extract_peaks(sensor_list):
   return peaks_index
 
 
-
-##############################
-# Extracting Features
-##############################
+####################################
+# Normalization
+####################################
 
 def normalize(features):
   features_len = len(features[0][0])
@@ -134,13 +134,36 @@ def normalize(features):
       else:
         features[i][0][j] = (features[i][0][j] - min) / float(max - min)
 
+  return {
+    MAX: max_features,
+    MIN: min_features
+  }
+
+def write_max_min_features_to_file(max_min_features):
+  max_features = max_min_features[MAX]
+  min_features = max_min_features[MIN]
+  write_normalizer_to_file(max_features, MAX_FEATURE_FILE)
+  write_normalizer_to_file(min_features, MIN_FEATURE_FILE)
+
+def write_normalizer_to_file(normalizers, file_name):
+  output = ""
+  for normalizer in normalizers:
+    output += str(normalizer) + ", "
+
+  file.write_file(file_name, [output])
+
+
+##############################
+# Extracting Features
+##############################
 
 def extract_features(imu_list, start, end):
   accel_features = extract_sensor_features(imu_list, ACCEL, start, end)
   gyro_features = extract_sensor_features(imu_list, GYRO, start, end)
-  compass_features = extract_sensor_features(imu_list, COMPASS, start, end)
+  # compass_features = extract_sensor_features(imu_list, COMPASS, start, end)
 
-  features = accel_features + gyro_features + compass_features
+  # features = accel_features + gyro_features + compass_features
+  features = accel_features + gyro_features
 
   return features
 
@@ -157,7 +180,6 @@ def extract_sensor_axis_features(imu_list, sensor_type, axis, start, end):
   readings = sensor_dict[READINGS]
   intvl_readings = readings[start:end+1]
   intvl_timestamps = timestamps[start:end+1]
-
 
   mean_val = mean(intvl_readings)
   max_val = max(intvl_readings)
@@ -181,13 +203,12 @@ def extract_sensor_axis_features(imu_list, sensor_type, axis, start, end):
   mean_thres2 = mean(intvl_readings, thres2)
   mean_thres3 = mean(intvl_readings, thres3)
 
-  num_peaks = len(extract_peaks(intvl_readings))
   timestamp = diff_timestamp(intvl_timestamps)
 
   return [mean_val, max_val, min_val, median_val, range_val, variance_val, std_val,
-  mean_diff_list, median_diff_list,
-  range_diff_list, std_diff_list, peak_to_peak, mean_thres1, mean_thres2, mean_thres3,
-  num_peaks, timestamp]
+  mean_diff_list, median_diff_list, range_diff_list, std_diff_list,
+  peak_to_peak, mean_thres1, mean_thres2, mean_thres3,
+  timestamp]
 
 
 ##########################################################

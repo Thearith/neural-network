@@ -30,6 +30,18 @@ def get_sensor_list(file_name):
 
   return datas
 
+def get_normalizer(file_name):
+  lines= read_file(file_name)
+  normalizers = []
+  for line in lines:
+    words = line.split(", ")
+    for word in words:
+      if word != '':
+        normalizer = float(word)
+        normalizers.append(word)
+
+  return normalizers
+
 def get_ground_truth_raw(file_name):
   lines = read_file(file_name)
   ground_truths = []
